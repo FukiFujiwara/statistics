@@ -1,0 +1,811 @@
+---
+title: "Graphs"
+author: "Fuki Fujiwaea"
+date: "`r format(Sys.time(), '%Y/%m/%d')`"
+output: 
+  BiocStyle::html_document:
+    toc: TRUE
+    toc_float: TRUE
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  eval=TRUE,
+  message=FALSE,
+  warning=FALSE
+  )
+```
+
+
+
+```{r library ,echo=FALSE}
+library(tidyverse)
+#library(ggplot2)
+#library(dplyr)
+#library(tidyr)
+library(ggsci)
+library(scales)
+library(ggrepel)
+library(ggsignif)
+library(gridExtra)
+library(Rmisc)
+library(DT)
+library(multcomp)
+library(scico)
+```
+
+# Split-plot desgn に沿った解析
+
+```{r}
+data <- read.csv("data/Ina_integrated_data_genus.csv",row.names=1)
+col_value <- substring(colnames(data),1,3) == "Sol" | substring(colnames(data),1,3) == "Non"
+data <- data[,col_value]
+```
+
+```{r}
+name<-c("Crop_Fresh_weight","Crop_Dry_weight","Crop_Leaf.length","Crop_No.leaves","Crop_Water_content","Crop_Brix","Crop_NO3","Crop_P_Nitrogen","Crop_P_Carbon","Crop_P_Ca","Crop_P_K","Crop_P_Mg","Soil_S1_pH","Soil_S2_pH","Soil_S1_Ex_Ca","Soil_S2_Ex_Ca","Soil_S1_Ex_Mg","Soil_S2_Ex_Mg","Soil_S1_Ex_K","Soil_S2_Ex_K","Soil_S1_Ex_Na","Soil_Compaction_1_20","Soil_Compaction_1500","Soil_S1_Nitrogen","Soil_S2_Nitrogen","Soil_S2_NO3","Soil_S2_SO4","Soil_ROI_S2_096","Soil_ROI_S2_115","Soil_ROI_S2_111","Soil_ROI_S1_075","Soil_ROI_S1_096","Soil_ROI_S1_088","d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Burkholderiales;f__Methylophilaceae;g__Methylobacillus","d__Bacteria;p__Proteobacteria;c__Alphaproteobacteria;o__Sphingomonadales;f__Sphingomonadaceae;g__Sphingomonas","d__Bacteria;p__Firmicutes;c__Bacilli;o__Bacillales;f__Bacillaceae;g__Bacillus","d__Bacteria;p__Actinobacteriota;c__Actinobacteria;o__Streptomycetales;f__Streptomycetaceae;g__Streptomyces","d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Pseudomonadales;f__Pseudomonadaceae;g__Pseudomonas","d__Bacteria;p__Bacteroidota;c__Bacteroidia;o__Flavobacteriales;f__Flavobacteriaceae;g__Flavobacterium","d__Bacteria;p__Actinobacteriota;c__Actinobacteria;o__Streptosporangiales;f__Streptosporangiaceae;g__Microbispora","pielou_evenness","faith_pd","shannon_entropy")
+
+
+label<-c("Fresh weight (g/plant)","Dry weight (g/plant)","Leaf length (cm)","Number of leaves (/plant)","Water content (%)","Brix","NO3 concentration of leaves (mg/100g)","Nitrogen contents of leaves (mg/100g)","Carbon contents of leaves (mg/100g)","Ca concentration of leaves (mg/100g)","K concentration of leaves (mg/100g)","Mg concentration of leaves (mg/100g)","Soil pH (Seeding)","Soil pH (Harvest)","Soil exchangeable Ca (Seeding) (mg/100g)","Soil exchangeable Ca (Harvest) (mg/100g)","Soil exchangeable Mg (Seeding) (mg/100g)","Soil exchangeable Mg (Harvest) (mg/100g)","Soil exchangeable K (Seeding) (mg/100g)","Soil exchangeable K (Harvest) (mg/100g)","Soil exchangeable Na (mg/100g)","Average compaction of top 20cm soil (kPa)","Depth where soil compactions reach 1500 kPa (cm)","Concentration of soil Nitrogen (mg/100g)","Concentration of soil Nitrogen (mg/100g)","Concentration of soil NO3 (mg/100g)","Soil_S2_SO4","Soil_ROI_S2_096","Soil_ROI_S2_115","Soil_ROI_S2_111","Soil_ROI_S1_075","Soil_ROI_S1_096","Soil_ROI_S1_088","Methylobacillus","Sphingomonas","Bacillus","Streptomyces","Pseudomonas","Flavobacterium","Microbispora","Pielou evenness","Faith pd","Shannon entropy")
+
+
+n<-data.frame(name=name,label=label)
+plot <- list()
+```
+
+```{r, echo=TRUE}
+library(lme4)
+
+splitplot_anova <- function(i) {
+  d <- data[rownames(data)==n$name[i],]
+  #print(n$name[i])
+  ylab <- n$label[i]
+  d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3),fert=substring(colnames(d),5,7),block=c(rep(1,20),rep(2,23),rep(3,21),rep(4,20)))
+  
+  for (i in 1:length(d$value)){if(d$solar[i]=="Non"){d$solar[i]<-"Non-solarized"}else{d$solar[i]<-"Solarized"}}
+  
+  #d$solar <- as.factor(d$solar)
+  #d$fert <- as.factor(d$fert)
+  d$block <- as.factor(d$block)
+  
+  fit <- lmer(value ~ solar * fert + (1 | block), data = d)
+  print(anova(fit))
+}
+
+for (i in c(1,2,6,7)){
+  print(name[i])
+  splitplot_anova(i)
+}
+```
+
+
+```{r, eval=FALSE}
+
+splitplot_anova <- function(i) {
+  d <- data[rownames(data)==n$name[i],]
+  #print(n$name[i])
+  ylab <- n$label[i]
+  d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3),fert=substring(colnames(d),5,7),block=c(rep(1,43),rep(2,41)))
+  
+  for (i in 1:length(d$value)){if(d$solar[i]=="Non"){d$solar[i]<-"Non-solarized"}else{d$solar[i]<-"Solarized"}}
+  
+  #d$solar <- as.factor(d$solar)
+  #d$fert <- as.factor(d$fert)
+  d$block <- as.factor(d$block)
+  
+  fit <- lmer(value ~ block + solar * fert + (1 | block:solar), data = d)
+  print(anova(fit))
+}
+  
+for (i in 1:6){
+  print(name[i])
+  splitplot_anova(i)
+}
+```
+
+
+# Split-plot design　は無視
+
+## 太陽熱処理のみ
+```{r,sol}
+
+
+for (i in 1:length(n[,1])) {
+  #print(paste("Fig. 1",letters[i],sep=""))
+  print(n$name[i])
+  d <- data[rownames(data)==n$name[i],]
+  d<-data.frame(value=as.vector(t(d)[,1]),treatment=substring(colnames(d),1,3))
+  
+  mean_sd <- d %>% group_by(treatment) %>% dplyr::summarise(mean=mean(value),sd=sd(value))
+  mean_sd$treatment<-factor(mean_sd$treatment)
+  
+  maxm<-max(mean_sd$mean)
+  maxs<-max(mean_sd$sd)
+  ylim=(maxm+maxs)*1.5
+  
+  errors<-aes(ymax=mean+sd,ymin = mean-sd)
+  
+  pvalue<-t.test(d$value[d$treatment=="Sol"],d$value[d$treatment=="Non"],var.equal=F,paired=F)$p.value
+  anno =  if(pvalue<0.001){
+            "***"
+          }else if(pvalue<0.01){
+            "**"
+          }else if(pvalue<0.05){
+            "*"
+          }else{
+            "n.s."
+          }
+  
+  g<-
+    ggplot(mean_sd, aes(y=mean,x=treatment,fill=treatment)) +
+    geom_bar(width=0.5,stat="identity",position="dodge",color="black",show.legend = FALSE)+
+    geom_errorbar(errors,width=0.1)+
+    scale_fill_manual(values=c("gray","white"))+
+    labs(x="",y=n$label[i])+
+    theme_classic()+
+    theme(text=element_text(size=18))+
+    scale_y_continuous(expand=c(0,0),limits=c(0,ylim))+
+    geom_signif(
+        y_position = ylim*0.8,
+        xmin=1.0,
+        xmax=2.0,
+        annotations = anno,
+        tip_length = 0.1,
+        textsize = 7
+    )
+  #plot[[i]] <- g
+  print(g)
+}
+```
+
+## 肥料のみ
+```{r,fert}
+
+for (i in 1:length(n[,1])) {
+  #print(paste("Fig. 1",letters[i],sep=""))
+  print(n$name[i])
+  d <- data[rownames(data)==n$name[i],]
+  d<-data.frame(value=as.vector(t(d)[,1]),fert=substring(colnames(d),5,7))
+  d$fert <- as.factor(d$fert)
+  
+  mean_sd <- d %>% group_by(fert) %>% dplyr::summarise(mean=mean(value),sd=sd(value))
+  colnames(mean_sd) <- c("fert","mean","sd")
+  
+  maxm<-max(mean_sd$mean)
+  maxs<-max(mean_sd$sd)
+  ylim=(maxm+maxs)*1.5
+  
+  errors<-aes(ymax=mean+sd,ymin = mean-sd)
+  
+  #多重比較
+  res =aov(value ~ fert, data=d)
+  #summary(res)
+  tuk = glht(res,linfct=mcp(fert="Tukey"))
+  mltv = cld(tuk,decreasing=F)
+  annos = mltv[["mcletters"]][["Letters"]]
+  
+  g<-
+    ggplot(mean_sd, aes(y=mean,x=fert, fill=fert)) +
+    geom_bar(width=0.5,stat="identity",position="dodge",color="black",show.legend = FALSE)+
+    geom_errorbar(errors,width=0.1)+
+    labs(x="",y=n$label[i])+
+    theme_classic()+
+    theme(text=element_text(size=18))+
+    scale_fill_manual(values = scico(6, palette = 'batlow'))+
+    scale_y_continuous(expand=c(0,0),limits=c(0,ylim))+
+    stat_summary(geom = 'text', label =annos, fun.y = max, vjust = -6)
+  #plot[[i]] <- g
+  print(g)
+}
+```
+
+## メインが肥料の処理の場合
+```{r,solfert}
+
+for (i in 1:length(n[,1])) {
+  d <- data[rownames(data)==n$name[i],]
+  print(n$name[i])
+  ylab <- n$label[i]
+  d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3),fert=substring(colnames(d),5,7))
+  for (i in 1:length(d$value)){if(d$solar[i]=="Non"){d$solar[i]<-"Non-solarized"}else{d$solar[i]<-"Solarized"}}
+  for (i in 1:length(d$value)){if(d$value[i]==0){d$value[i]<-NA}}
+  d<-na.omit(d)
+  
+  mean_sd <- d %>% group_by(solar,fert) %>% dplyr::summarise(mean(value),sd(value))
+  colnames(mean_sd) <- c("solar","fert","mean","sd")
+  mean_sd$solar<-factor(mean_sd$solar, level=c("Solarized","Non-solarized"))
+  
+  maxm<-max(mean(d$value[d$solar=="Solarized"]),mean(d$value[d$solar=="Non-solarized"]))
+  maxs<-max(sd(d$value[d$solar=="Solarized"]),sd(d$value[d$solar=="Non-solarized"]))
+  
+  ylim=(maxm+maxs)*1.5
+  
+  #errors <- aes(ymax = mean+sd, ymin = mean-sd)
+  pvalue <- d %>% group_by(fert) %>% 
+    dplyr::summarize(t.test(as.vector(value[solar=="Solarized"]),as.vector(value[solar=="Non-solarized"]),var.equal=FALSE, paired=FALSE)$p.value)
+  
+  pvalue <- data.frame(anno=apply(pvalue[,2],1,function(x) {
+    if(x<0.001){
+      "***"
+    }else if(x<0.01){
+      "**"
+    }else if(x<0.05){
+      "*"
+    }else{
+      ""
+    }
+    }),
+    pos=apply(pvalue[,2],1,function(x) {
+    if(x<0.05){
+      1
+    }else{
+      NA
+    }
+    })
+    )
+  
+  tip <- d %>% group_by(fert) %>% 
+    dplyr::summarise(s=mean(value[solar=="Solarized"])+sd(value[solar=="Solarized"]),n=mean(value[solar=="Non-solarized"])+sd(value[solar=="Non-solarized"]))
+  tip_len <- c()
+  for(i in 1:6){
+    tip_len <- append(tip_len,ylim-tip$s[i])
+    tip_len <- append(tip_len,ylim-tip$n[i])
+  }
+  #tip_len <- (tip_len-ylim*0.1)/(max(tip_len)-ylim*0.1)
+  tip_len <- (tip_len-ylim*0.1)/max(tip_len)
+  
+  g<-
+    ggplot(mean_sd, aes(y=mean,x=fert,fill=solar)) +
+    geom_bar(width=0.6,stat="identity",position="dodge",color="black")+
+    geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.1,position=position_dodge(0.6))+
+    scale_fill_manual(values=c("gray","white"))+
+    theme_classic()+
+    theme(text=element_text(size=14),
+          axis.title.y = element_text(margin = margin(0,15,0,0)))+
+    labs(x="",y=ylab)+
+    scale_y_continuous(expand=c(0,0),limits=c(0,ylim))+
+    geom_signif(
+        y_position = ylim*0.9,
+        xmin=c(0.85,1.85,2.85,3.85,4.85,5.85)*pvalue$pos,
+        xmax=c(1.15,2.15,3.15,4.15,5.15,6.15)*pvalue$pos,
+        annotations = pvalue$anno,
+        tip_length = tip_len,
+        textsize = 7
+    )
+  #plot[[i]] <- g
+  print(g)
+}
+```
+
+## メインが太陽熱処理の場合
+```{r, fig.height=6, fig.width=8,solfert2}
+
+
+for (i in 1:length(n[,1])) {
+  d <- data[rownames(data)==n$name[i],]
+  print(n$name[i])
+  ylab <- n$label[i]
+  d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3),fert=substring(colnames(d),5,7))
+  for (i in 1:length(d$value)){if(d$solar[i]=="Non"){d$solar[i]<-"Non-solarized"}else{d$solar[i]<-"Solarized"}}
+  for (i in 1:length(d$value)){if(d$value[i]==0){d$value[i]<-NA}}
+  d<-na.omit(d)
+  
+  mean_sd <- d %>% group_by(solar,fert) %>% dplyr::summarize(mean(value),sd(value))
+  colnames(mean_sd) <- c("solar","Fertilizer","mean","sd")
+  mean_sd$solar<-factor(mean_sd$solar, level=c("Solarized","Non-solarized"))
+  
+  maxm<-max(mean(d$value[d$solar=="Solarized"]),mean(d$value[d$solar=="Non-solarized"]))
+  maxs<-max(sd(d$value[d$solar=="Solarized"]),sd(d$value[d$solar=="Non-solarized"]))
+  
+  ylim=(maxm+maxs)*1.5
+  
+  #errors <- aes(ymax = mean+sd, ymin = mean-sd)
+  pvalue<-t.test(d$value[d$solar=="Solarized"],d$value[d$solar=="Non-solarized"],var.equal=F,paired=F)$p.value
+  
+    if(pvalue<0.001){
+      anno<-"***"
+    }else if(pvalue<0.01){
+      anno<-"**"
+    }else if(pvalue<0.05){
+      anno<-"*"
+    }else{
+      anno<-""
+    }
+  
+  
+    if(pvalue<0.05){
+      pos<-1
+    }else{
+      pos<-NA
+    }
+  
+  
+  g<-
+    ggplot(mean_sd, aes(y=mean,x=solar,fill=Fertilizer)) +
+    geom_bar(width=0.6,stat="identity",position="dodge",color="black")+
+    geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.1,position=position_dodge(0.6))+
+    #scale_fill_manual(values=c("gray","white"))+
+    #scale_fill_manual(values=c("red","blue","green","yellow","gray","white"))+
+    scale_fill_manual(values = scico(6, palette = 'batlow'))+
+    theme_classic()+
+    theme(
+          text = element_text(size = 20),
+          axis.text.x = element_text(size = 22, margin = margin(15,0,0,0)),
+          axis.title.y = element_text(size = 20 , margin = margin(0,15,0,0))
+          )+
+    
+    labs(x="",y=ylab)+
+    scale_y_continuous(expand=c(0,0),limits=c(0,ylim))+
+    geom_signif(
+        y_position = ylim*0.9,
+        xmin=1*pos,
+        xmax=2*pos,
+        annotations = anno,
+        tip_length = 0.2,
+        textsize = 7
+    )
+  #plot[[i]] <- g
+  print(g)
+}
+```
+
+
+```{r,eval=FALSE}
+
+data <- read.csv("data/Ina_integrated_data_species.csv",row.names=1)
+col_value <- substring(colnames(data),1,3) == "Sol" | substring(colnames(data),1,3) == "Non"
+data <- data[,col_value]
+
+
+name<-c("d__Bacteria;p__Bacteroidota;c__Bacteroidia;o__Cytophagales;f__Microscillaceae;g__uncultured;s__Musa_ABB","d__Bacteria;p__Bacteroidota;c__Bacteroidia;o__Cytophagales;f__Microscillaceae;g__OLB12;s__uncultured_bacterium","d__Bacteria;p__Actinobacteriota;c__Actinobacteria;o__Micromonosporales;f__Micromonosporaceae;g__Actinoplanes;__","d__Bacteria;p__Deinococcota;c__Deinococci;o__Thermales;f__Thermaceae;g__Meiothermus;__","d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Burkholderiales;f__Comamonadaceae;g__Rhizobacter;__")
+
+label<-c("Cytophagales_1","Cytophagales_2","Actinoplanes xinjiangensis","Meiothermus silvanus","Rhizobacer gummiphilus")
+
+n<-data.frame(name=name,label=label)
+plot <- list()
+
+for (i in 1:length(n[,1])) {
+  #print(paste("Fig. 1",letters[i],sep=""))
+  print(n$name[i])
+  d <- data[rownames(data)==n$name[i],]
+  d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3))
+  mean = c(mean(d$value[d$solar=="Sol"]),mean(d$value[d$solar=="Non"]))
+  sd = c(sd(d$value[d$solar=="Sol"]),sd(d$value[d$solar=="Non"]))
+  x<-data.frame(mean = mean, treatment = c("Sol","Non"))
+  x$treatment<-factor(x$treatment, level=c("Sol","Non"))
+  errors<-aes(ymax=mean+sd,ymin = mean-sd)
+  pvalue<-t.test(d$value[d$solar=="Sol"],d$value[d$solar=="Non"],var.equal=F,paired=F)$p.value
+  maxm<-max(mean(d$value[d$solar=="Sol"]),mean(d$value[d$solar=="Non"]))
+  maxs<-max(sd(d$value[d$solar=="Sol"]),sd(d$value[d$solar=="Non"]))
+  ylim=(maxm+maxs)*1.5
+  g<-
+    ggplot(x, aes(y=mean,x=treatment,fill=treatment)) +
+    geom_bar(width=0.5,stat="identity",position="dodge",color="black",show.legend = FALSE)+
+    geom_errorbar(errors,width=0.1)+
+    scale_fill_manual(values=c("gray","white"))+
+    labs(x="",y=n$label[i])+
+    theme_classic()+
+    theme(text=element_text(size=18))+
+    scale_y_continuous(expand=c(0,0),limits=c(0,ylim))+
+    geom_signif(
+        y_position = ylim*0.8,
+        xmin=1.0,
+        xmax=2.0,
+        annotations = 
+          if(pvalue<0.001){
+            "***"
+          }else if(pvalue<0.01){
+            "**"
+          }else if(pvalue<0.05){
+            "*"
+          }else{
+            "n.s."
+          },
+        tip_length = 0.1,
+        textsize = 7
+    )
+  #plot[[i]] <- g
+  print(g)
+}
+#for (i in 0:(length(name)%/%2)){
+#  c<-c(2*i+1,2*i+2)
+#  p <- plot[c]
+#  multiplot(plotlist = p, cols=2)
+#}
+```
+
+## Soil Compaction
+
+```{r soil.compaction}
+data_c <-read.csv("data/Ina_trim_dataset_download.csv",row.names=1)
+
+data.soilcompaction <- data_c[substring(rownames(data_c),1,10)=='Soil_Depth',]
+rownames(data.soilcompaction) <- 1:90
+data.soilcompaction.sol <- data.soilcompaction[,substring(colnames(data.soilcompaction),1,3)=='Sol']
+data.soilcompaction.non <- data.soilcompaction[,substring(colnames(data.soilcompaction),1,3)=='Non']
+
+x1<-data.soilcompaction.sol
+x2<-data.soilcompaction.non
+#cols <- colorRampPalette(c("#1a81c2", "#dc143c"))(50)
+x1 <- transform(x1,Depth=c(1:90))
+x2 <- transform(x2,Depth=c(1:90))
+y1 <- x1 %>% pivot_longer(col=-Depth, names_to = "plot", values_to = "Compaction")
+y2 <- x2 %>% pivot_longer(col=-Depth, names_to = "plot", values_to = "Compaction")
+y1$plot <- as.factor(y1$plot)
+y2$plot <- as.factor(y2$plot)
+
+g <- ggplot(y1,aes(x=Depth,y=Compaction,color=plot))+ 
+  geom_line()+ 
+  ggtitle("Soil Compaction in siol solarized plots")+ 
+  scale_x_continuous(breaks = seq(0, 90, by = 10))+ 
+  scale_color_manual(values = scico(41,palette = 'batlow'))+
+  theme_minimal()+ 
+  theme(legend.position="none")
+  
+print(g)
+```
+
+
+```{r}
+g <- ggplot(y1,aes(x=Depth,y=Compaction,color=plot))+ 
+  geom_line()+ 
+  ggtitle("Soil Compaction in non solarized plot")+ 
+  scale_x_continuous(breaks = seq(0, 90, by = 10))+ 
+  scale_color_manual(values = scico(43 ,palette = 'batlow'))+
+  theme_minimal()+ 
+  theme(legend.position="none")
+  
+g
+```
+
+
+## Microbiome
+
+
+```{r}
+d <- data[rownames(data)=="Viable_Bacteria_count",]
+d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3),fert=substring(colnames(d),5,7))
+for (i in 1:length(d$value)){if(d$value[i]==0){d$value[i]<-NA}}
+d<-na.omit(d)
+
+mean_sd <- d %>% group_by(solar,fert) %>% dplyr::summarize(mean(value),sd(value))
+colnames(mean_sd) <- c("solar","fert","mean","sd")
+mean_sd$solar<-factor(mean_sd$solar, level=c("Sol","Non"))
+
+#errors <- aes(ymax = mean+sd, ymin = mean-sd)
+#t.test(d$value[d$solar=="Sol"],d$value[d$solar=="Non"],var.equal=F,paired=F)$p.value
+#maxm<-max(mean(d$value[d$solar=="Sol"]),mean(d$value[d$solar=="Non"]))
+#maxs<-max(sd(d$value[d$solar=="Sol"]),sd(d$value[d$solar=="Non"]))
+#ylim=(maxm+maxs)*1.5
+
+g<-
+  ggplot(mean_sd, aes(y=mean,x=fert,fill=solar)) +
+  geom_bar(width=0.5,stat="identity",position="dodge",color="black",show.legend = TRUE)+
+  #geom_errorbar(errors,width=0.25,position=position_dodge(0.5))+
+  geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.1,position=position_dodge(0.5))+
+  scale_fill_manual(values=c("gray","white"))+
+  theme_classic()+
+  theme(text=element_text(size=20))+
+  labs(x="",y="Count")+
+  scale_y_continuous(expand=c(0,0))
+
+#plot[[i]] <- g
+print(g)
+#for (i in 0:(length(name)%/%2)){
+#  c<-c(2*i+1,2*i+2)
+#  p <- plot[c]
+#  multiplot(plotlist = p, cols=2)
+#}
+```
+
+
+## Correlation
+```{r}
+#data <- read.csv("data/Ina_integrated_data_species.csv",row.names=1)[,col_value]
+#data <- read.csv("data/data.filtered_species.csv",row.names=1)[,col_value]
+data <- read.csv("data/data_rbfn_species.csv",row.names=1)[,col_value]
+```
+
+```{r}
+name1<-c("Crop_Leaf.length","Crop_Fresh_weight","Crop_Dry_weight","Crop_Water_content","Crop_NO3","Crop_NO3","Soil_S2_SO4","Soil_S2_SO4","Soil_S2_SO4","Soil_ROI_S2_096")
+name2<-c("Crop_Brix","Crop_Brix","Crop_Brix","Crop_Brix","Crop_Brix","Crop_Fresh_weight","Soil_ROI_S1_096","Soil_ROI_S2_096","d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Pseudomonadales;f__Pseudomonadaceae;g__Pseudomonas;__","d__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Pseudomonadales;f__Pseudomonadaceae;g__Pseudomonas;__")
+
+label1<-c("Leaf length (cm)","Fresh weight (g/plant)","Dry weight (g/plant)","Water content (%)","NO3 concentration of leaves (ppm)","NO3 concentration of leaves (ppm)","Soil SO4","Soil SO4","Soil SO4","Soil Choline (Seeding)")
+label2<-c("Brix","Brix","Brix","Brix","Brix","Fresh weight (g/plant)","Soil Choline (Seeding)","Soil Choline (Harvest)","Pseudomonas","Pseudomonas")
+
+n<-data.frame(name1=name1,name2=name2,label1=label1,label2=label2)
+
+
+for (i in 1:length(name1)) {
+  #print(paste(n$name1[i],"&",n$name2[i]))
+  data1 <- data[substring(rownames(data),1,200)==n$name1[i],]
+  data2 <- data[substring(rownames(data),1,200)==n$name2[i],]
+  x<-data.frame(value1=as.vector(t(data1)[,1]),value2=as.vector(t(data2)[,1]))
+  test<-cor.test(x$value1,x$value2)
+  #print(test$p.value)
+  print(test)
+  g<-ggplot(x, aes(x=value1,y=value2)) +
+    geom_point()+
+    geom_smooth(method="lm")+
+      xlab(n$label1[i])+
+      ylab(n$label2[i])+
+      theme_classic()
+  print(g)
+}
+
+```
+
+```{r, eval=FALSE}
+grid.arrange(g1, g2, g3, g4,g5)
+print(g2)
+```
+
+
+```{r, eval=FALSE}
+  i="Crop_Fresh_weight"
+  d <- data[rownames(data)==i,]
+  ylab <- i
+  d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3),fert=substring(colnames(d),5,7))
+  for (i in 1:length(d$value)){if(d$solar[i]=="Non"){d$solar[i]<-"Non-solarized"}else{d$solar[i]<-"Solarized"}}
+  for (i in 1:length(d$value)){if(d$value[i]==0){d$value[i]<-NA}}
+  d<-na.omit(d)
+  
+  mean_sd <- d %>% group_by(solar,fert) %>% dplyr::summarize(mean(value),sd(value))
+  colnames(mean_sd) <- c("solar","fert","mean","sd")
+  mean_sd$solar<-factor(mean_sd$solar, level=c("Solarized","Non-solarized"))
+  
+  maxm<-max(mean(d$value[d$solar=="Solarized"]),mean(d$value[d$solar=="Non-solarized"]))
+  maxs<-max(sd(d$value[d$solar=="Solarized"]),sd(d$value[d$solar=="Non-solarized"]))
+  
+  ylim=(maxm+maxs)*1.5
+  
+  #errors <- aes(ymax = mean+sd, ymin = mean-sd)
+  pvalue <- d %>% group_by(fert) %>% 
+    summarize(t.test(as.vector(value[solar=="Solarized"]),as.vector(value[solar=="Non-solarized"]),var.equal=FALSE, paired=FALSE)$p.value)
+  pvalue <- data.frame(anno=apply(pvalue[,2],1,function(x) {
+    if(x<0.001){
+      "***"
+    }else if(x<0.01){
+      "**"
+    }else if(x<0.05){
+      "*"
+    }else{
+      ""
+    }
+    }),
+    pos=apply(pvalue[,2],1,function(x) {
+    if(x<0.05){
+      1
+    }else{
+      NA
+    }
+    })
+    )
+  
+  
+  
+  g<-
+    ggplot(mean_sd, aes(y=mean,x=fert,fill=solar)) +
+    geom_bar(width=0.6,stat="identity",position="dodge",color="black")+
+    geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.1,position=position_dodge(0.6))+
+    scale_fill_manual(values=c("gray","white"))+
+    theme_classic()+
+    theme(text=element_text(size=14),
+          axis.title.y = element_text(margin = margin(0,15,0,0)))+
+    labs(x="",y=ylab)+
+    scale_y_continuous(expand=c(0,0),limits=c(0,ylim))+
+    geom_signif(
+        y_position = ylim*0.9,
+        xmin=c(0.85,1.85,2.85,3.85,4.85,5.85)*pvalue$pos,
+        xmax=c(1.15,2.15,3.15,4.15,5.15,6.15)*pvalue$pos,
+        annotations = pvalue$anno,
+        tip_length = c(0.6,0.85,1,1,1,1,1,1,1,1,0.8,0.95),
+        textsize = 7
+    )
+  #plot[[i]] <- g
+  print(g)
+```
+
+```{r, eval=FALSE}
+  i="Crop_Brix"
+  d <- data[rownames(data)==i,]
+  ylab <- i
+  d<-data.frame(value=as.vector(t(d)[,1]),solar=substring(colnames(d),1,3),fert=substring(colnames(d),5,7))
+  for (i in 1:length(d$value)){if(d$solar[i]=="Non"){d$solar[i]<-"Non-solarized"}else{d$solar[i]<-"Solarized"}}
+  for (i in 1:length(d$value)){if(d$value[i]==0){d$value[i]<-NA}}
+  d<-na.omit(d)
+  
+  mean_sd <- d %>% group_by(solar,fert) %>% dplyr::summarize(mean(value),sd(value))
+  colnames(mean_sd) <- c("solar","fert","mean","sd")
+  mean_sd$solar<-factor(mean_sd$solar, level=c("Solarized","Non-solarized"))
+  
+  maxm<-max(mean(d$value[d$solar=="Solarized"]),mean(d$value[d$solar=="Non-solarized"]))
+  maxs<-max(sd(d$value[d$solar=="Solarized"]),sd(d$value[d$solar=="Non-solarized"]))
+  
+  ylim=(maxm+maxs)*1.5
+  
+  #errors <- aes(ymax = mean+sd, ymin = mean-sd)
+  pvalue <- d %>% group_by(fert) %>% 
+    summarize(t.test(as.vector(value[solar=="Solarized"]),as.vector(value[solar=="Non-solarized"]),var.equal=FALSE, paired=FALSE)$p.value)
+  pvalue <- data.frame(anno=apply(pvalue[,2],1,function(x) {
+    if(x<0.001){
+      "***"
+    }else if(x<0.01){
+      "**"
+    }else if(x<0.05){
+      "*"
+    }else{
+      ""
+    }
+    }),
+    pos=apply(pvalue[,2],1,function(x) {
+    if(x<0.05){
+      1
+    }else{
+      NA
+    }
+    })
+    )
+  
+  
+  
+  g<-
+    ggplot(mean_sd, aes(y=mean,x=fert,fill=solar)) +
+    geom_bar(width=0.6,stat="identity",position="dodge",color="black")+
+    geom_errorbar(aes(ymin=mean-sd, ymax=mean+sd), width=.1,position=position_dodge(0.6))+
+    scale_fill_manual(values=c("gray","white"))+
+    theme_classic()+
+    theme(text=element_text(size=14),
+          axis.title.y = element_text(margin = margin(0,15,0,0)))+
+    labs(x="",y=ylab)+
+    scale_y_continuous(expand=c(0,0),limits=c(0,ylim))+
+    geom_signif(
+        y_position = ylim*0.9,
+        xmin=c(0.85,1.85,2.85,3.85,4.85,5.85)*pvalue$pos,
+        xmax=c(1.15,2.15,3.15,4.15,5.15,6.15)*pvalue$pos,
+        annotations = pvalue$anno,
+        tip_length = c(1,0.4,0.85,0.7,1.05,0.3,1.05,0.7,1,0.65,1.05,0.4),
+        textsize = 7
+    )
+  #plot[[i]] <- g
+  print(g)
+```
+## DEG
+```{r}
+#data <- read.csv("data/Ina_integrated_data_species.csv",row.names=1)
+#data <- read.csv("data/data_rbfn_species.csv")
+data <- read.csv("data/data.filtered_species.csv")
+
+data <- data[data$level0=="seeding"&data$level1=="soil"&data$level2=="metabolome",-c(2:5)]
+data <- na.omit(data)
+
+df <- data %>% pivot_longer(cols=-1, names_to = "plot", values_to = "value")
+colnames(df) <- c("variable", "treatment", "value")
+df$treatment <- substring(df$treatment, 1,3)
+#head(df)
+
+#変数ごとにsolとnonでt検定を行いp値を計算
+test <- df %>% 
+  group_by(variable) %>% 
+  dplyr::summarize(Difference=(mean(value[treatment=="Sol"])-mean(value[treatment=="Non"]))*log2(exp(1)),  pvalue=t.test(value[treatment=="Sol"],value[treatment=="Non"], var.equal=F)$p.value)
+
+#データ無しを除外
+test <- na.omit(test)
+
+qvalue <- p.adjust(test$pvalue, method="BH")
+test <- transform(test, qvalue=qvalue)
+#head(test)
+
+significant_increase <- test[test$qvalue < 0.05 & test$Difference > 1,]
+significant_increase$qvalue <- -log10(significant_increase$qvalue)
+colnames(significant_increase)<-c("Variable","logFC", "p value","-log10(FDR)")
+datatable(significant_increase, options = list(
+  order = list(list(4, 'desc'))
+))
+```
+
+
+```{r}
+#data <- read.csv("data/Ina_integrated_data_species.csv",row.names=1)
+#data <- read.csv("data/data_rbfn_species.csv")
+data <- read.csv("data/data.filtered_species.csv")
+
+data <- data[data$level0=="harvest"&data$level1=="soil"&data$level2=="metabolome",-c(2:5)]
+data <- na.omit(data)
+
+df <- data %>% pivot_longer(cols=-1, names_to = "plot", values_to = "value")
+colnames(df) <- c("variable", "treatment", "value")
+df$treatment <- substring(df$treatment, 1,3)
+#head(df)
+
+#変数ごとにsolとnonでt検定を行いp値を計算
+test <- df %>% 
+  group_by(variable) %>% 
+  dplyr::summarize(Difference=(mean(value[treatment=="Sol"])-mean(value[treatment=="Non"]))*log2(exp(1)),  pvalue=t.test(value[treatment=="Sol"],value[treatment=="Non"], var.equal=F)$p.value)
+
+#データ無しを除外
+test <- na.omit(test)
+
+qvalue <- p.adjust(test$pvalue, method="BH")
+test <- transform(test, qvalue=qvalue)
+#head(test)
+
+significant_increase <- test[test$qvalue < 0.05 & test$Difference > 1,]
+significant_increase$qvalue <- -log10(significant_increase$qvalue)
+colnames(significant_increase)<-c("Variable","logFC", "p value","-log10(FDR)")
+datatable(significant_increase, options = list(
+  order = list(list(4, 'desc'))
+))
+```
+
+```{r}
+#data <- read.csv("data/Ina_integrated_data_species.csv",row.names=1)
+#data <- read.csv("data/data_rbfn_species.csv")
+data <- read.csv("data/data.filtered_species.csv")
+
+data <- data[data$level1=="microbe",-c(2:5)]
+data <- na.omit(data)
+
+df <- data %>% pivot_longer(cols=-1, names_to = "plot", values_to = "value")
+colnames(df) <- c("variable", "treatment", "value")
+df$treatment <- substring(df$treatment, 1,3)
+#head(df)
+
+#変数ごとにsolとnonでt検定を行いp値を計算
+test <- df %>% 
+  group_by(variable) %>% 
+  dplyr::summarize(Difference=(mean(value[treatment=="Sol"])-mean(value[treatment=="Non"]))*log2(exp(1)),  pvalue=t.test(value[treatment=="Sol"],value[treatment=="Non"], var.equal=F)$p.value)
+
+#データ無しを除外
+test <- na.omit(test)
+
+qvalue <- p.adjust(test$pvalue, method="BH")
+test <- transform(test, qvalue=qvalue)
+#head(test)
+
+significant_increase <- test[test$qvalue < 0.05 & test$Difference > 1,]
+significant_increase$qvalue <- -log10(significant_increase$qvalue)
+colnames(significant_increase)<-c("Variable","logFC", "p value","-log10(FDR)")
+datatable(significant_increase, options = list(
+  order = list(list(4, 'desc'))
+))
+```
+
+## DEG
+```{r}
+#data <- read.csv("data/Ina_integrated_data_species.csv",row.names=1)
+#data <- read.csv("data/data_rbfn_species.csv")
+data <- read.csv("data/data.filtered_species.csv")
+
+data <- data[data$level2=="transcriptome",-c(2:5)]
+data <- na.omit(data)
+
+df <- data %>% pivot_longer(cols=-1,names_to = "plot", values_to = "value")
+colnames(df) <- c("variable", "treatment", "value")
+df$treatment <- substring(df$treatment, 1,3)
+#head(df)
+
+#変数ごとにsolとnonでt検定を行いp値を計算
+test <- df %>% 
+  group_by(variable) %>% 
+  dplyr::summarize(Difference=(mean(value[treatment=="Sol"])-mean(value[treatment=="Non"]))*log2(exp(1)),  pvalue=t.test(value[treatment=="Sol"],value[treatment=="Non"], var.equal=F)$p.value)
+
+#データ無しを除外
+test <- na.omit(test)
+
+qvalue <- p.adjust(test$pvalue, method="BH")
+test <- transform(test, qvalue=qvalue)
+#head(test)
+
+significant_increase <- test[test$qvalue < 0.05 & test$Difference > 0.5,]
+significant_increase$qvalue <- -log10(significant_increase$qvalue)
+colnames(significant_increase)<-c("Variable","logFC", "p value","-log10(FDR)")
+significant_increase$Variable <- substring(significant_increase$Variable,6,14)
+datatable(significant_increase, options = list(
+  order = list(list(4, 'desc'))
+))
+
+write.csv(significant_increase,"data/enrichedgenes.csv")
+```
