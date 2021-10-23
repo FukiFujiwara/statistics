@@ -8,6 +8,7 @@ ggpmiscは散布図のプロットの際に回帰式を書くのに用います�
 ```
 library(tidyverse)
 library(ggpmisc)
+library(multcomp)
 ```
 <br>
 
