@@ -1,4 +1,4 @@
-# statistics
+# 説明
 
 パッケージを読み込ます。   
     
@@ -18,7 +18,8 @@ data <- read.csv("sample_data.csv", header = TRUE, colClasses=c("factor","factor
 ```
 <br>
 
-以下のように各処理９つのデータ（３×３ブロック）を含むデータフレームとなっています。
+以下のように各処理９つのデータ（３×３ブロック）を含むデータフレームとなっています。      
+数値としては、生鮮重（Fresh_weight）と硝酸イオン濃度（NO3）の２つを含んでいます。
 ```
 head(data)
 ```
@@ -143,9 +144,14 @@ anova(model)
 
 ## 多重比較
 
+Tukey-Kramer法を用いて多重比較を行います。     
+標準の関数TukeyHSD()で実行できます。
 ```
 TukeyHSD(aov(df$Fresh_weight ~ df$treatment))
 ```
+<br>
+
+結果は、N0kgとN20kgの間でのみ有意差が検出されました。
 ```
 #   Tukey multiple comparisons of means
 #     95% family-wise confidence level
@@ -161,6 +167,9 @@ TukeyHSD(aov(df$Fresh_weight ~ df$treatment))
 # 30-10  -6.961111 -19.431458  5.5092356 0.3448667
 # 30-20 -12.164444 -24.634791  0.3059023 0.0558501
 ```
+<br>
+
+同様の検定を、multcompパッケージのglht()を用いても実行できます。
 ```
 res <- lm(Fresh_weight ~  treatment + block, d=df)
 tukey_res <- glht(res, linfct=mcp(treatment="Tukey"))
@@ -173,26 +182,37 @@ summary(tukey_res)
 # Multiple Comparisons of Means: Tukey Contrasts
 # 
 # 
-# Fit: lm(formula = Fresh_weight ~ treatment + block, data = df)
+# Fit: lm(formula = Fresh_weight ~ treatment, data = df)
 # 
 # Linear Hypotheses:
 #              Estimate Std. Error t value Pr(>|t|)   
-# 10 - 0 == 0     8.706      2.659   3.273  0.06258 . 
-# 20 - 0 == 0    13.909      2.659   5.230  0.00807 **
-# 30 - 0 == 0     1.744      2.659   0.656  0.90973   
-# 20 - 10 == 0    5.203      2.659   1.957  0.29965   
-# 30 - 10 == 0   -6.961      2.659  -2.617  0.13644   
-# 30 - 20 == 0  -12.164      2.659  -4.574  0.01473 * 
+# 10 - 0 == 0     8.706      3.894   2.236   0.1932 
+# 20 - 0 == 0    13.909      3.894   3.572   0.0299 *
+# 30 - 0 == 0     1.744      3.894   0.448   0.9682  
+# 20 - 10 == 0    5.203      3.894   1.336   0.5676  
+# 30 - 10 == 0   -6.961      3.894  -1.788   0.3449  
+# 30 - 20 == 0  -12.164      3.894  -3.124   0.0556 .
 # ---
 # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 # (Adjusted p values reported -- single-step method)
 ```
+<br>
 
+検定結果から有意差を示すアルファベットを取り出します。       
+cld()という関数を用いると、結果から自動で取り出すことができます。
 ```
-mltv = cld(tukey_res, decreasing=F)
-annos = mltv[["mcletters"]][["Letters"]]
+mltv <- cld(tukey_res, decreasing=F)
+annos <- mltv[["mcletters"]][["Letters"]]
+```
+手打ちでも可能です。
+```
+annos <- c("a","ab","b","ab")
 ```
 
+<br>
+
+最後にグラフを書きます。        
+stat_summary()でアルファベットを記入します。
 ```
 g <- ggplot(df, aes(x = treatment, y = Fresh_weight))+
   stat_boxplot(geom = "errorbar", width = 0.3)+
@@ -207,14 +227,20 @@ g <- ggplot(df, aes(x = treatment, y = Fresh_weight))+
         )
 g
 ```
-<img src=https://user-images.githubusercontent.com/73625448/138549143-2cc9ed1c-7458-4c33-84a7-c9996f19f744.png width=70%>
+<img src=https://user-images.githubusercontent.com/73625448/138549289-7c06f0a6-bf01-44f6-a304-135ad82fefea.png width=70%>
 
 ## 相関分析
+
+相関分析はcor.test()関数で実行できます。
 
 ```
 cor.test(df$NO3, df$Fresh_weight)
 ```
 
+<br>
+
+ここでは、生鮮重と硝酸イオン濃度の間に有意な正の相関が検出されました。     
+相関係数(R)は0.70、p値は0.01です。
 ```
 # 	Pearson's product-moment correlation
 # 
@@ -228,21 +254,26 @@ cor.test(df$NO3, df$Fresh_weight)
 # 0.7036367 
 ```
 
+<br>
+
+散布図を描いて、単回帰直線と回帰式などを記入します。      
+geom_smooth()で回帰直線を記入できます。      
+また、ggpmiscパッケージのstat_poly_eq()で回帰式やR^2、p値などを記入することができます。
 ```
 g <- ggplot(df, aes(x = NO3, y = Fresh_weight))+
   geom_point()+
   geom_smooth(method = "lm", linetype = "dashed", se = FALSE, col="orange")+
-  scale_y_continuous(expand = c(0,0),limits = c(0,45))+
-  scale_x_continuous(expand = c(0,0),limits = c(0,600))+
-  labs(x = "NO3-N concentration (mg/100g)", y = "Fresh weight (g/plant)")+
-  theme_classic()+
-  theme(text = element_text(size=18))+
   stat_poly_eq(formula = y ~ x,
                aes(label = paste(stat(eq.label),
                                  stat(rr.label),
                                  stat(p.value.label),
                                  sep = "~~~")),
-               parse = TRUE)
+               parse = TRUE)+
+  scale_y_continuous(expand = c(0,0),limits = c(0,45))+
+  scale_x_continuous(expand = c(0,0),limits = c(0,600))+
+  labs(x = "NO3-N concentration (mg/100g)", y = "Fresh weight (g/plant)")+
+  theme_classic()+
+  theme(text = element_text(size=18))
 
 g
 ```
