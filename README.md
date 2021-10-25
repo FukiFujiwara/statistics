@@ -2,11 +2,14 @@
 
 パッケージを読み込ます。   
     
-tidyverseはggplot2やdplyrが入ったパッケージ群です。
-ggpmiscは散布図のプロットの際に回帰式を書くのに用います。
-multcompは多重比較を行う際に使用します。
+tidyverseはggplot2やdplyrが入ったパッケージ群です。        
+ggpmiscは散布図のプロットの際に回帰式を書くのに用います。        
+multcompは多重比較を行う際に使用します。   
 
 ```
+#install.packages("tidyverse")
+#install.packages("multcomp")
+#install.packages("ggpmisc")
 library(tidyverse)
 library(ggpmisc)
 library(multcomp)
