@@ -66,25 +66,36 @@ df <- data %>%
 a <- aov(Fresh_weight ~ treatment, df)
 summary(a)
 
+#df %>% aov(Fresh_weight ~ treatment, data = .) %>% summary()
+
 a <- aov(Fresh_weight ~ treatment + block, df)
 summary(a)
+
+#df %>% aov(Fresh_weight ~ treatment + block, data = .) %>% summary()
 
 a <- aov(Fresh_weight ~ treatment + Error(block), df)
 summary(a)
 
+#df %>% aov(Fresh_weight ~ treatment + Error(block), data = .) %>% summary()
+
 l <- lm(Fresh_weight ~ treatment + block, df)
 anova(l)
 
+#df %>% lm(Fresh_weight ~ treatment + block, data = .) %>% anova()
 
 # 多重比較
 
-TukeyHSD(aov(df$Fresh_weight ~ df$treatment))
+a <- aov(Fresh_weight ~ treatment, df)
+TukeyHSD(a)
 
+#df %>% aov(Fresh_weight ~ treatment, data = .) %>% TukeyHSD()
 
 res <- lm(Fresh_weight ~  treatment, d=df)
 tukey_res <- glht(res, linfct=mcp(treatment="Tukey"))
 summary(tukey_res)
 
+#tukey_res <- df %>% lm(Fresh_weight ~  treatment, d= .) %>% glht(linfct=mcp(treatment="Tukey"))
+#summary(tukey_res)
 
 mltv <- cld(tukey_res, decreasing=F)
 annos <- mltv[["mcletters"]][["Letters"]]
