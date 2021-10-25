@@ -4,6 +4,7 @@
     
 tidyverseはggplot2やdplyrが入ったパッケージ群です。
 ggpmiscは散布図のプロットの際に回帰式を書くのに用います。
+multcompは多重比較を行う際に使用します。
 
 ```
 library(tidyverse)
@@ -108,10 +109,10 @@ summary(a)
 <br>
 
 
-ブロック効果は厳密には変量効果であると言えます。        
-以下のように変量効果として指定をしても、計算方法が異なるだけで処理のF値（P値）は、固定効果として計算した場合と変わりません。
+ブロック効果を以下のように変量効果として指定をしても、固定効果として計算した場合と結果は変わりません。
+
 ```
-a <- aov(Fresh_weight ~ treatment +Error(block), df)
+a <- aov(Fresh_weight ~ treatment + Error(block), df)
 summary(a)
 
 # Error: block
@@ -129,8 +130,8 @@ summary(a)
 
 同様の分散分析は、lm()とanova()を用いて以下のように計算もできます。
 ```
-model <- lm(brix ~ treatment + block, data = data)
-anova(model)
+a <- lm(Fresh_weight ~ treatment + block, df)
+anova(a)
 
 # Analysis of Variance Table
 # 
@@ -147,8 +148,10 @@ anova(model)
 
 Tukey-Kramer法を用いて多重比較を行います。     
 標準の関数TukeyHSD()で実行できます。
+
 ```
-TukeyHSD(aov(df$Fresh_weight ~ df$treatment))
+a <- aov(Fresh_weight ~ treatment, df)
+TukeyHSD(a)
 ```
 <br>
 
@@ -157,7 +160,7 @@ TukeyHSD(aov(df$Fresh_weight ~ df$treatment))
 #   Tukey multiple comparisons of means
 #     95% family-wise confidence level
 # 
-# Fit: aov(formula = df$Fresh_weight ~ df$treatment)
+# Fit: aov(formula = Fresh_weight ~ treatment, data = df)
 # 
 # $`df$treatment`
 #             diff        lwr        upr     p adj
@@ -172,8 +175,7 @@ TukeyHSD(aov(df$Fresh_weight ~ df$treatment))
 
 同様の検定を、multcompパッケージのglht()を用いても実行できます。
 ```
-res <- lm(Fresh_weight ~  treatment + block, d=df)
-tukey_res <- glht(res, linfct=mcp(treatment="Tukey"))
+tukey_res <- glht(a, linfct=mcp(treatment="Tukey"))
 summary(tukey_res)
 ```
 
@@ -183,7 +185,7 @@ summary(tukey_res)
 # Multiple Comparisons of Means: Tukey Contrasts
 # 
 # 
-# Fit: lm(formula = Fresh_weight ~ treatment, data = df)
+# Fit: aov(formula = Fresh_weight ~ treatment, data = df)
 # 
 # Linear Hypotheses:
 #              Estimate Std. Error t value Pr(>|t|)   
@@ -201,6 +203,7 @@ summary(tukey_res)
 
 検定結果から有意差を示すアルファベットを取り出します。       
 cld()という関数を用いると、結果から自動で取り出すことができます。
+
 ```
 mltv <- cld(tukey_res, decreasing=F)
 annos <- mltv[["mcletters"]][["Letters"]]
@@ -242,6 +245,7 @@ cor.test(df$NO3, df$Fresh_weight)
 
 ここでは、生鮮重と硝酸イオン濃度の間に有意な正の相関が検出されました。     
 相関係数(R)は0.70、p値は0.01です。
+
 ```
 # 	Pearson's product-moment correlation
 # 
@@ -260,6 +264,7 @@ cor.test(df$NO3, df$Fresh_weight)
 散布図を描いて、単回帰直線と回帰式などを記入します。      
 geom_smooth()で回帰直線を記入できます。      
 また、ggpmiscパッケージのstat_poly_eq()で回帰式やR^2、p値などを記入することができます。
+
 ```
 g <- ggplot(df, aes(x = NO3, y = Fresh_weight))+
   geom_point()+
